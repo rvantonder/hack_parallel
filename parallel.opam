@@ -1,0 +1,13 @@
+opam-version: "1.2"
+version: ""
+maintainer: ""
+authors: [""]
+homepage: ""
+bug-reports: ""
+dev-repo: ""
+license: "MIT"
+build: [["dune" "build" "-p" name "-j" jobs "@install"]]
+build-test: [["dune" "runtest" "-p" name "-j" jobs]]
+depends: [
+  "core"
+]

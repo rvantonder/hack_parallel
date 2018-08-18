@@ -1,0 +1,5 @@
+(library
+ (name socket)
+ (public_name parallel.socket)
+ (libraries
+  parallel.utilities))

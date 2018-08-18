@@ -1,0 +1,7 @@
+(library
+ (name disk)
+ (public_name parallel.disk)
+ (libraries
+  core
+  parallel.injector_config
+  parallel.collections))

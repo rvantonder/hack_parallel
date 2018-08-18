@@ -1,0 +1,9 @@
+(library
+ (name utilities)
+ (public_name parallel.utilities)
+ (libraries
+  parallel.hack_core
+  parallel.disk
+  parallel.injector_config
+  parallel.hh_json
+  parallel.collections))

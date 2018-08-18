@@ -1,0 +1,5 @@
+(library
+ (name injector_config)
+ (public_name parallel.injector_config)
+ (libraries
+  core))

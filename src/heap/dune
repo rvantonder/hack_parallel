@@ -1,0 +1,7 @@
+(library
+ (name heap)
+ (public_name parallel.heap)
+ (libraries
+  hack_core
+  parallel.stubs
+  parallel.utilities))

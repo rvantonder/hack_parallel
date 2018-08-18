@@ -1,0 +1,4 @@
+(library
+ (name collections)
+ (public_name parallel.collections)
+ (wrapped false))
