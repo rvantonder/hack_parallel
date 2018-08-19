@@ -102,22 +102,14 @@ EXTRA_INCLUDE_OPTS=$(foreach dir, $(ALL_INCLUDE_PATHS),-ccopt -I -ccopt $(dir))
 	cp $(subst _build/,,$@) $@
 
 .PHONY: all
-all: libhp.a
-	ocamlbuild \
-		-tag -custom \
-		-use-ocamlfind \
-		 $(INCLUDE_OPTS) \
-		-lflags "$(LINKER_FLAGS)" \
-		parallel.cma
-	ocamlbuild \
-		-use-ocamlfind \
-		 $(INCLUDE_OPTS) \
-		-lflags "$(LINKER_FLAGS)" \
-		parallel.cmxa
+all: libhp.a 
+	mkdir -p _build/default
+	cp static_libs/libhp.a _build/default/
+	dune build @install -j auto --profile dev
 
 .PHONY: install
 install:
-	ocamlfind install parallel META $(shell cat install.txt)
+	dune install
 
 .PHONY: generate_install
 generate_install:
@@ -138,17 +130,11 @@ generate_install:
 
 .PHONY: remove
 remove:
-	ocamlfind remove parallel
+	dune uninstall
 
 .PHONY: clean
 clean:
-	ocamlbuild -clean
-
-.PHONY: dune
-dune: libhp.a 
-	mkdir -p _build/default
-	cp static_libs/libhp.a _build/default/
-	dune build @install -j auto --profile dev
+	dune clean
 
 $(BUILT_C_FILES): _build/%.c: %.c
 	mkdir -p $(dir $@)

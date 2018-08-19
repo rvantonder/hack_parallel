@@ -1,6 +1,0 @@
-description = "parallol"
-requires = "sedlex str"
-version = "0.1"
-archive(native) = "parallel.cmxa"
-archive(byte) = "parallel.cma"
-
