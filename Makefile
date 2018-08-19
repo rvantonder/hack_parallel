@@ -145,7 +145,9 @@ clean:
 	ocamlbuild -clean
 
 .PHONY: dune
-dune:
+dune: libhp.a 
+	mkdir -p _build/default
+	cp static_libs/libhp.a _build/default/
 	dune build @install -j auto --profile dev
 
 $(BUILT_C_FILES): _build/%.c: %.c
@@ -157,4 +159,4 @@ $(BUILT_OBJECT_FILES): %.o: %.c $(ALL_HEADER_FILES)
 
 libhp.a: $(BUILT_OBJECT_FILES)
 	ar -cvq libhp.a $(BUILT_OBJECT_FILES)
-	mv libhp.a _build
+	mv libhp.a static_libs
