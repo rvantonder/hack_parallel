@@ -1,0 +1,45 @@
+(library
+ (name interface)
+ (public_name parallel.interface)
+ (modules parallel_intf)
+ (wrapped false)
+ (libraries
+  core
+  parallel.heap
+  parallel.processes
+  parallel.utilities))
+
+(library
+ (name scheduler)
+ (public_name parallel.scheduler)
+ (modules scheduler)
+ (preprocess
+  (pps
+   ppx_deriving.eq
+   ppx_deriving.show
+   ppx_hash
+   ppx_compare
+   ppx_sexp_conv))
+ (libraries
+  core
+  sexplib
+  ppxlib
+  parallel.interface
+  parallel.memory))
+
+(library
+ (name memory)
+ (public_name parallel.memory)
+ (modules memory)
+ (preprocess
+  (pps
+   ppx_deriving.eq
+   ppx_deriving.show
+   ppx_hash
+   ppx_compare
+   ppx_sexp_conv))
+ (libraries
+  core
+  sexplib
+  ppxlib
+  parallel.interface))

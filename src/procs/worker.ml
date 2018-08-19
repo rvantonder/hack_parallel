@@ -10,7 +10,6 @@
 
 open Utilities
 open Hack_core
-open Heap
 open Stubs
 
 (*****************************************************************************
@@ -174,30 +173,30 @@ let slave_main ic oc =
     exit 0
   with
   | End_of_file ->
-      exit 1
+    exit 1
   | SharedMem.Out_of_shared_memory ->
-      Exit_status.(exit Out_of_shared_memory)
+    Exit_status.(exit Out_of_shared_memory)
   | SharedMem.Hash_table_full ->
-      Exit_status.(exit Hash_table_full)
+    Exit_status.(exit Hash_table_full)
   | SharedMem.Heap_full ->
-      Exit_status.(exit Heap_full)
+    Exit_status.(exit Heap_full)
   | SharedMem.Sql_assertion_failure err_num ->
-      let exit_code = match err_num with
-        | 11 -> Exit_status.Sql_corrupt
-        | 14 -> Exit_status.Sql_cantopen
-        | 21 -> Exit_status.Sql_misuse
-        | _ -> Exit_status.Sql_assertion_failure
-      in
-      Exit_status.exit exit_code
+    let exit_code = match err_num with
+      | 11 -> Exit_status.Sql_corrupt
+      | 14 -> Exit_status.Sql_cantopen
+      | 21 -> Exit_status.Sql_misuse
+      | _ -> Exit_status.Sql_assertion_failure
+    in
+    Exit_status.exit exit_code
   | e ->
-      let e_str = Printexc.to_string e in
-      Printf.printf "Exception: %s\n" e_str;
-      EventLogger.log_if_initialized (fun () ->
-          EventLogger.worker_exception e_str
-        );
-      print_endline "Potential backtrace:";
-      Printexc.print_backtrace stdout;
-      exit 2
+    let e_str = Printexc.to_string e in
+    Printf.printf "Exception: %s\n" e_str;
+    EventLogger.log_if_initialized (fun () ->
+        EventLogger.worker_exception e_str
+      );
+    print_endline "Potential backtrace:";
+    Printexc.print_backtrace stdout;
+    exit 2
 
 let win32_worker_main restore state (ic, oc) =
   restore state;
@@ -218,22 +217,22 @@ let unix_worker_main restore state (ic, oc) =
       match Fork.fork() with
       | 0 -> slave_main ic oc
       | pid ->
-          (* Wait for the slave termination... *)
-          match snd (Unix.waitpid [] pid) with
-          | Unix.WEXITED 0 -> ()
-          | Unix.WEXITED 1 ->
-              raise End_of_file
-          | Unix.WEXITED code ->
-              Printf.printf "Worker exited (code: %d)\n" code;
-              flush stdout;
-              Pervasives.exit code
-          | Unix.WSIGNALED x ->
-              let sig_str = PrintSignal.string_of_signal x in
-              Printf.printf "Worker interrupted with signal: %s\n" sig_str;
-              exit 2
-          | Unix.WSTOPPED x ->
-              Printf.printf "Worker stopped with signal: %d\n" x;
-              exit 3
+        (* Wait for the slave termination... *)
+        match snd (Unix.waitpid [] pid) with
+        | Unix.WEXITED 0 -> ()
+        | Unix.WEXITED 1 ->
+          raise End_of_file
+        | Unix.WEXITED code ->
+          Printf.printf "Worker exited (code: %d)\n" code;
+          flush stdout;
+          Pervasives.exit code
+        | Unix.WSIGNALED x ->
+          let sig_str = PrintSignal.string_of_signal x in
+          Printf.printf "Worker interrupted with signal: %s\n" sig_str;
+          exit 2
+        | Unix.WSTOPPED x ->
+          Printf.printf "Worker stopped with signal: %d\n" x;
+          exit 3
     done;
     assert false
   with End_of_file -> exit 0
@@ -307,26 +306,26 @@ let call w (type a) (type b) (f : a -> b) (x : a) : b handle =
   let result () : b =
     match Unix.waitpid [Unix.WNOHANG] slave_pid with
     | 0, _ | _, Unix.WEXITED 0 ->
-        let res : b * Measure.record_data = Daemon.input_value inc in
-        if w.prespawned = None then Daemon.close h;
-        Measure.merge (Measure.deserialize (snd res));
-        fst res
+      let res : b * Measure.record_data = Daemon.input_value inc in
+      if w.prespawned = None then Daemon.close h;
+      Measure.merge (Measure.deserialize (snd res));
+      fst res
     | _, Unix.WEXITED i when i = Exit_status.(exit_code Out_of_shared_memory) ->
-        raise SharedMem.Out_of_shared_memory
+      raise SharedMem.Out_of_shared_memory
     | _, Unix.WEXITED i ->
-        Printf.eprintf "Subprocess(%d): fail %d" slave_pid i;
-        raise (Worker_exited_abnormally i)
+      Printf.eprintf "Subprocess(%d): fail %d" slave_pid i;
+      raise (Worker_exited_abnormally i)
     | _, Unix.WSTOPPED i ->
-        Printf.ksprintf failwith "Subprocess(%d): stopped %d" slave_pid i
+      Printf.ksprintf failwith "Subprocess(%d): stopped %d" slave_pid i
     | _, Unix.WSIGNALED i ->
-        Printf.ksprintf failwith "Subprocess(%d): signaled %d" slave_pid i in
+      Printf.ksprintf failwith "Subprocess(%d): signaled %d" slave_pid i in
   (* Mark the worker as busy. *)
   let infd = Daemon.descr_of_in_channel inc in
   let slave = { result; slave_pid; infd; worker = w; } in
   w.busy <- true;
   let request = match w.call_wrapper with
     | Some { wrap } ->
-        (Request (fun { send } -> send (wrap f x)))
+      (Request (fun { send } -> send (wrap f x)))
     | None -> (Request (fun { send } -> send (f x)))
 
   in
@@ -337,9 +336,9 @@ let call w (type a) (type b) (f : a -> b) (x : a) : b handle =
   | e -> begin
       match Unix.waitpid [Unix.WNOHANG] slave_pid with
       | 0, _ ->
-          raise (Worker_failed_to_send_job (Other_send_job_failure e))
+        raise (Worker_failed_to_send_job (Other_send_job_failure e))
       | _, status ->
-          raise (Worker_failed_to_send_job (Worker_already_exited status))
+        raise (Worker_failed_to_send_job (Worker_already_exited status))
     end
   in
   (* And returned the 'handle'. *)
@@ -361,18 +360,18 @@ let get_result d =
   | Cached x -> x
   | Failed exn -> raise exn
   | Processing s ->
-      try
-        let res = s.result () in
-        s.worker.busy <- false;
-        d := Cached res;
-        res
-      with
-      | Failure (msg) when is_oom_failure msg ->
-          raise Worker_oomed
-      | exn ->
-          s.worker.busy <- false;
-          d := Failed exn;
-          raise exn
+    try
+      let res = s.result () in
+      s.worker.busy <- false;
+      d := Cached res;
+      res
+    with
+    | Failure (msg) when is_oom_failure msg ->
+      raise Worker_oomed
+    | exn ->
+      s.worker.busy <- false;
+      d := Failed exn;
+      raise exn
 
 
 (*****************************************************************************
@@ -403,11 +402,11 @@ let select ds =
     ~f:(fun d { readys ; waiters } ->
         match !d with
         | Cached _ | Failed _ ->
-            { readys = d :: readys ; waiters }
+          { readys = d :: readys ; waiters }
         | Processing s when List.mem ready_fds s.infd ->
-            { readys = d :: readys ; waiters }
+          { readys = d :: readys ; waiters }
         | Processing _ ->
-            { readys ; waiters = d :: waiters})
+          { readys ; waiters = d :: waiters})
     ~init:{ readys = [] ; waiters = [] }
     ds
 

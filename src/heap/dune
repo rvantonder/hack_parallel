@@ -1,6 +1,7 @@
 (library
  (name heap)
  (public_name parallel.heap)
+ (wrapped false)
  (libraries
   hack_core
   parallel.stubs

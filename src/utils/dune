@@ -2,6 +2,7 @@
  (name utilities)
  (public_name parallel.utilities)
  (libraries
+  str
   parallel.hack_core
   parallel.disk
   parallel.injector_config

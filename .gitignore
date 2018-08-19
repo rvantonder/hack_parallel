@@ -1,3 +1,4 @@
-/.merlin
+.merlin
 _build
-/.swp
+.swp
+/parallel.install
