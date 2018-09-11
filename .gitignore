@@ -2,3 +2,4 @@ _build
 /parallel.install
 *.merlin
 *.swp
+*.a
