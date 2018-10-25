@@ -145,4 +145,5 @@ $(BUILT_OBJECT_FILES): %.o: %.c $(ALL_HEADER_FILES)
 
 libhp.a: $(BUILT_OBJECT_FILES)
 	ar -cvq libhp.a $(BUILT_OBJECT_FILES)
+	mkdir -p static_libs
 	mv libhp.a static_libs
