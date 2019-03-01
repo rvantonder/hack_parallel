@@ -1,5 +1,5 @@
 _build
-/parallel.install
+/hack_parallel.install
 *.merlin
 *.swp
 *.a

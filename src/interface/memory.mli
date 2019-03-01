@@ -1,5 +1,5 @@
-include module type of Parallel_intf.Std.SharedMem
-  with type handle = Parallel_intf.Std.SharedMem.handle
+include module type of Hack_parallel_intf.Std.SharedMem
+  with type handle = Hack_parallel_intf.Std.SharedMem.handle
 
 val get_heap_handle: unit -> handle
 

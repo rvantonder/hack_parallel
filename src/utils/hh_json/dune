@@ -1,6 +1,6 @@
 (library
  (name hh_json)
- (public_name parallel.hh_json)
+ (public_name hack_parallel.hh_json)
  (libraries
   core
-  parallel.hack_core))
+  hack_parallel.hack_core))

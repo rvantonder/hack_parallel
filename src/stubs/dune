@@ -1,5 +1,5 @@
 (library
  (name stubs)
- (public_name parallel.stubs)
+ (public_name hack_parallel.stubs)
  (libraries
   core))

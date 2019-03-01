@@ -5,14 +5,14 @@
   (flags (:standard -w A-3-4-6-27-29-34-32-35-39-40-41-42-44-45-48-49-50-57))))
 
 (library
- (name parallel)
- (public_name parallel)
+ (name hack_parallel)
+ (public_name hack_parallel)
  (c_library_flags -lhp)
  (libraries
   str
   core
-  parallel.scheduler
-  parallel.memory))
+  hack_parallel.scheduler
+  hack_parallel.memory))
 
 (install
   (section lib)

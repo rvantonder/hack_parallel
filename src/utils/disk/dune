@@ -1,7 +1,7 @@
 (library
  (name disk)
- (public_name parallel.disk)
+ (public_name hack_parallel.disk)
  (libraries
   core
-  parallel.injector_config
-  parallel.collections))
+  hack_parallel.injector_config
+  hack_parallel.collections))

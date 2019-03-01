@@ -1,8 +1,8 @@
 (library
  (name processes)
- (public_name parallel.processes)
+ (public_name hack_parallel.processes)
  (libraries
-  parallel.utilities
-  parallel.hack_core
-  parallel.stubs
-  parallel.heap))
+  hack_parallel.utilities
+  hack_parallel.hack_core
+  hack_parallel.stubs
+  hack_parallel.heap))

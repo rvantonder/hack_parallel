@@ -1,17 +1,17 @@
 (library
  (name interface)
- (public_name parallel.interface)
- (modules parallel_intf)
+ (public_name hack_parallel.interface)
+ (modules hack_parallel_intf)
  (wrapped false)
  (libraries
   core
-  parallel.heap
-  parallel.processes
-  parallel.utilities))
+  hack_parallel.heap
+  hack_parallel.processes
+  hack_parallel.utilities))
 
 (library
  (name scheduler)
- (public_name parallel.scheduler)
+ (public_name hack_parallel.scheduler)
  (modules scheduler)
  (preprocess
   (pps
@@ -24,12 +24,12 @@
   core
   sexplib
   ppxlib
-  parallel.interface
-  parallel.memory))
+  hack_parallel.interface
+  hack_parallel.memory))
 
 (library
  (name memory)
- (public_name parallel.memory)
+ (public_name hack_parallel.memory)
  (modules memory)
  (preprocess
   (pps
@@ -42,4 +42,4 @@
   core
   sexplib
   ppxlib
-  parallel.interface))
+  hack_parallel.interface))

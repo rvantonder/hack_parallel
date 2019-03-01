@@ -1,5 +1,5 @@
 (library
  (name socket)
- (public_name parallel.socket)
+ (public_name hack_parallel.socket)
  (libraries
-  parallel.utilities))
+  hack_parallel.utilities))

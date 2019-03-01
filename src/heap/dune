@@ -1,8 +1,8 @@
 (library
  (name heap)
- (public_name parallel.heap)
+ (public_name hack_parallel.heap)
  (wrapped false)
  (libraries
   hack_core
-  parallel.stubs
-  parallel.utilities))
+  hack_parallel.stubs
+  hack_parallel.utilities))

@@ -3,7 +3,7 @@
     This source code is licensed under the MIT license found in the
     LICENSE file in the root directory of this source tree. *)
 
-open Parallel_intf.Std
+open Hack_parallel_intf.Std
 
 module Daemon = Daemon
 
@@ -25,7 +25,7 @@ let create
     () =
   let heap_handle = Memory.get_heap_handle () in
   let workers =
-    Parallel_intf.Std.Worker.make
+    Hack_parallel_intf.Std.Worker.make
       ?call_wrapper:None
       ~saved_state:()
       ~entry

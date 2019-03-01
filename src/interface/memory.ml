@@ -3,7 +3,7 @@
     This source code is licensed under the MIT license found in the
     LICENSE file in the root directory of this source tree. *)
 
-module SharedMemory = Parallel_intf.Std.SharedMem
+module SharedMemory = Hack_parallel_intf.Std.SharedMem
 
 include SharedMemory
 
@@ -11,7 +11,7 @@ include SharedMemory
 type bytes = int
 
 type configuration = {
-  heap_handle: Parallel_intf.Std.SharedMem.handle;
+  heap_handle: Hack_parallel_intf.Std.SharedMem.handle;
   minor_heap_size: bytes;
 }
 

@@ -1,4 +1,4 @@
-open Parallel_intf.Std
+open Hack_parallel_intf.Std
 
 module Daemon = Daemon
 
