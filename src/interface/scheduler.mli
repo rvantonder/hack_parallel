@@ -22,3 +22,5 @@ val single_job : t -> f:('a -> 'b) -> 'a -> 'b
 val mock: unit -> t
 
 val destroy : t -> unit
+
+val longest_processing_time_first: int -> ('a * int) list -> 'a list list

@@ -3,6 +3,8 @@
     This source code is licensed under the MIT license found in the
     LICENSE file in the root directory of this source tree. *)
 
+open Core
+
 open Parallel_intf.Std
 
 module Daemon = Daemon
@@ -17,6 +19,24 @@ type t = {
 
 let entry =
   Worker.register_entry_point ~restore:(fun _ -> ())
+
+
+let min left right = Int.compare (snd left) (snd right)
+
+
+let longest_processing_time_first number_of_workers jobs =
+  let sorted = List.sort jobs ~compare:min |> List.rev in
+  let partitions = Array.create ~len:number_of_workers ([], 0) (* paths, sum *) in
+  let rec aux = function
+    | [] -> ()
+    | (path, size)::tail ->
+      Array.sort partitions ~compare:min;
+      Array.replace partitions 0 ~f:(fun (paths, sum) -> path::paths, sum+size);
+      aux tail
+  in
+  aux sorted;
+  Array.to_list partitions
+  |> List.map ~f:fst
 
 
 let create

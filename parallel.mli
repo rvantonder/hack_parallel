@@ -24,6 +24,8 @@ module Scheduler : sig
   val mock : unit -> t
 
   val destroy : t -> unit
+
+  val longest_processing_time_first: int -> ('a * int) list -> 'a list list
 end
 
 module Memory : module type of Memory
