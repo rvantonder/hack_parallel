@@ -25,7 +25,7 @@ please see the example project here to get a feel for the interface: https://git
 # Some more details
 
 The design decisions behind the parallel architecture and shared memory are best explained by this [video](https://www.youtube.com/watch?v=uXuYVUdFY48&t=0s&list=WL&index=28)
-and this part of the [documentation](https://github.com/rvantonder/hack-parallel/blob/master/src/heap/hh_shared.c#L10-L76). 
+and this part of the [documentation](https://github.com/rvantonder/hack-parallel/blob/master/src/heap/hh_shared.c#L10-L76).
 You can ignore the scary `THIS CODE ONLY WORKS WITH HACK`--the code does work generally, but you have to keep in mind the
-restrictions on memory as explained in the rest of the file. The motivation behind the shared memory implementation is similar to
-[ancient](http://git.annexia.org/?p=ocaml-ancient.git;a=blob_plain;f=README.txt).
+restrictions on memory operations as explained in the rest of the file. The motivation behind the shared memory implementation is similar to [ancient](http://git.annexia.org/?p=ocaml-ancient.git;a=blob;f=README.txt;h=e2d9103d5f1820f89e5fd9e18f245cc330e8b29d;hb=HEAD). 
+
