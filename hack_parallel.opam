@@ -1,13 +1,11 @@
 opam-version: "1.2"
-version: ""
-maintainer: ""
+maintainer: "rvantonder@gmail.com"
 authors: [""]
-homepage: ""
-bug-reports: ""
-dev-repo: ""
+homepage: "https://github.com/rvantonder/hack-parallel"
+bug-reports: "https://github.com/rvantonder/hack-parallel/issues"
+dev-repo: "https://github.com/rvantonder/hack-parallel.git"
 license: "MIT"
 build: [["dune" "build" "-p" name "-j" jobs "@install"]]
-build-test: [["dune" "runtest" "-p" name "-j" jobs]]
 depends: [
   "core"
 ]
