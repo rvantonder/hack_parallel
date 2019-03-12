@@ -1,11 +1,17 @@
-opam-version: "1.2"
+opam-version: "2.0"
 maintainer: "rvantonder@gmail.com"
-authors: [""]
+authors: "Facebook hackers"
 homepage: "https://github.com/rvantonder/hack-parallel"
 bug-reports: "https://github.com/rvantonder/hack-parallel/issues"
-dev-repo: "https://github.com/rvantonder/hack-parallel.git"
+dev-repo: "git+https://github.com/rvantonder/hack-parallel.git"
 license: "MIT"
-build: [["dune" "build" "-p" name "-j" jobs "@install"]]
+build: ["dune" "build" "-p" name "-j" jobs "@install"]
 depends: [
   "core"
+  "ppx_deriving"
 ]
+synopsis: "Parallel and shared memory library"
+description: """
+Parallel and shared memory components used in Facebook's Hack, Flow, and Pyre
+projects.
+"""
