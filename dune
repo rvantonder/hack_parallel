@@ -7,7 +7,7 @@
 (library
  (name hack_parallel)
  (public_name hack_parallel)
- (c_library_flags -lhp)
+ (c_library_flags -L static_libs -l hp)
  (libraries
   str
   core
