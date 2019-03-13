@@ -134,6 +134,7 @@ remove:
 
 .PHONY: clean
 clean:
+	rm -rf static_libs
 	dune clean
 
 $(BUILT_C_FILES): _build/%.c: %.c
