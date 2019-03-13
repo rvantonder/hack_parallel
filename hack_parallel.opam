@@ -6,8 +6,8 @@ bug-reports: "https://github.com/rvantonder/hack-parallel/issues"
 dev-repo: "git+https://github.com/rvantonder/hack-parallel.git"
 license: "MIT"
 build: [
-  make "libhp.a"
-  "dune" "build" "-p" name "-j" jobs "@install"
+  [make "libhp.a"]
+  ["dune" "build" "-p" name "-j" jobs "@install"]
 ]
 depends: [
   "core"
