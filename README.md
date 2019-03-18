@@ -14,13 +14,13 @@ upstream changes to these files are welcome. The files in the current library ar
 
 # Install and Example
 
-Simply:
+Hack_parallel is available on opam:
 
 ```
-git clone https://github.com/rvantonder/hack-parallel.git && cd hack-parallel && make && make install
+opam install hack_parallel
 ```
 
-please see the example project here to get a feel for the interface: https://github.com/rvantonder/hack-parallel-example
+Please see the example project here to get a feel for the interface: https://github.com/rvantonder/hack-parallel-example
 
 # Some more details
 
