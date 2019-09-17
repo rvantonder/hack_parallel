@@ -16,6 +16,8 @@ upstream changes to these files are welcome. The files in the current library ar
 
 Hack_parallel is available on opam:
 
+- Note: this is only available for opam 2. See [how to install opam 2](https://opam.ocaml.org/doc/Install.html).
+
 ```
 opam install hack_parallel
 ```
