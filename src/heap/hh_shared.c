@@ -105,6 +105,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __OpenBSD__
+#include <errno.h>
+#endif
+
 #include <lz4.h>
 #include <time.h>
 
