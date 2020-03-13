@@ -1,8 +1,0 @@
-(library
- (name heap)
- (public_name hack_parallel.heap)
- (wrapped false)
- (libraries
-  hack_core
-  hack_parallel.stubs
-  hack_parallel.utilities))

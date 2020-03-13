@@ -1,7 +1,0 @@
-(library
- (name disk)
- (public_name hack_parallel.disk)
- (libraries
-  core
-  hack_parallel.injector_config
-  hack_parallel.collections))

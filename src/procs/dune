@@ -1,8 +1,0 @@
-(library
- (name processes)
- (public_name hack_parallel.processes)
- (libraries
-  hack_parallel.utilities
-  hack_parallel.hack_core
-  hack_parallel.stubs
-  hack_parallel.heap))
