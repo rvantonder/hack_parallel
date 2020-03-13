@@ -2,15 +2,12 @@
  * Copyright (c) 2015, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the "hack" directory of this source tree.
  *
 *)
 
-open Utilities
 open Hack_core
-open Stubs
 
 (* Don't change the ordering of this record without updating hh_shared_init in
  * hh_shared.c, which indexes into config objects *)
@@ -31,10 +28,20 @@ type handle = private {
   h_heap_size: int;
 }
 
+let kind_of_int x = match x with
+  | 0 -> `ConstantK
+  | 1 -> `ClassK
+  | 2 -> `FuncK
+  | _ when x < 0 -> failwith "kind_of_int: attempted to convert from negative int"
+  | _ -> assert (x > 0); failwith "kind_of_int: int too large, no corresponding kind"
+let _kind_of_int = kind_of_int
+
+
 exception Out_of_shared_memory
 exception Hash_table_full
 exception Dep_table_full
 exception Heap_full
+exception Revision_length_is_zero
 exception Sql_assertion_failure of int
 exception Failed_anonymous_memfd_init
 exception Less_than_minimum_available of int
@@ -45,6 +52,7 @@ let () =
   Callback.register_exception "hash_table_full" Hash_table_full;
   Callback.register_exception "dep_table_full" Dep_table_full;
   Callback.register_exception "heap_full" Heap_full;
+  Callback.register_exception "revision_length_is_zero" Revision_length_is_zero;
   Callback.register_exception
     "sql_assertion_failure"
     (Sql_assertion_failure 0);
@@ -137,24 +145,72 @@ let init config =
     then Hh_logger.log "Failed to use anonymous memfd init";
     shm_dir_init config config.shm_dirs
 
-external connect : handle -> is_master:bool -> unit = "hh_connect"
+external connect : handle -> unit = "hh_connect"
 
 (*****************************************************************************)
 (* The shared memory garbage collector. It must be called every time we
  * free data (cf hh_shared.c for the underlying C implementation).
 *)
 (*****************************************************************************)
-external hh_collect: bool -> unit = "hh_collect"
+
+external hh_collect: unit -> unit = "hh_collect" [@@noalloc]
 
 (*****************************************************************************)
 (* Serializes the dependency table and writes it to a file *)
 (*****************************************************************************)
-external save_dep_table_sqlite: string -> int = "hh_save_dep_table_sqlite"
+
+external loaded_dep_table_filename_c: unit -> string = "hh_get_loaded_dep_table_filename"
+
+let loaded_dep_table_filename () =
+  let fn = loaded_dep_table_filename_c () in
+  if String.equal "" fn then
+    None
+  else
+    Some fn
+
+(** Returns number of dependency edges added. *)
+external save_dep_table_sqlite_c: string -> string -> int = "hh_save_dep_table_sqlite"
+
+let save_dep_table_sqlite : string -> string -> int = fun fn build_revision ->
+  if (loaded_dep_table_filename ()) <> None then
+    failwith "save_dep_table_sqlite not supported when server is loaded from a saved state";
+  Hh_logger.log "Dumping a saved state deptable.";
+  save_dep_table_sqlite_c fn build_revision
 
 (*****************************************************************************)
 (* Loads the dependency table by reading from a file *)
 (*****************************************************************************)
-external load_dep_table_sqlite: string -> int = "hh_load_dep_table_sqlite"
+
+external load_dep_table_sqlite_c: string -> bool -> int = "hh_load_dep_table_sqlite"
+
+let load_dep_table_sqlite : string -> bool -> int = fun fn ignore_hh_version ->
+  load_dep_table_sqlite_c fn ignore_hh_version
+
+(*****************************************************************************)
+(* Serializes & loads the hash table directly into memory *)
+(*****************************************************************************)
+
+external save_table: string -> unit = "hh_save_table"
+
+external load_table: string -> unit = "hh_load_table"
+
+(*****************************************************************************)
+(* Serializes the hash table to sqlite *)
+(*****************************************************************************)
+
+external hh_save_table_sqlite: string -> int = "hh_save_table_sqlite"
+let save_table_sqlite filename = hh_save_table_sqlite filename
+
+external hh_save_table_keys_sqlite: string -> string array -> int =
+  "hh_save_table_keys_sqlite"
+let save_table_keys_sqlite filename keys = hh_save_table_keys_sqlite filename keys
+
+(*****************************************************************************)
+(* Loads the hash table by reading from a file *)
+(*****************************************************************************)
+
+external hh_load_table_sqlite: string -> bool -> int = "hh_load_table_sqlite"
+let load_table_sqlite filename verify = hh_load_table_sqlite filename verify
 
 (*****************************************************************************)
 (* Cleans up the artifacts generated by SQL *)
@@ -164,14 +220,19 @@ external cleanup_sqlite: unit -> unit = "hh_cleanup_sqlite"
 (*****************************************************************************)
 (* The size of the dynamically allocated shared memory section *)
 (*****************************************************************************)
-external heap_size: unit -> int = "hh_heap_size"
+external heap_size: unit -> int = "hh_used_heap_size" [@@noalloc]
+
+(*****************************************************************************)
+(* Part of the heap not reachable from hashtable entries. *)
+(*****************************************************************************)
+external wasted_heap_size: unit -> int = "hh_wasted_heap_size" [@@noalloc]
 
 (*****************************************************************************)
 (* The logging level for shared memory statistics *)
 (* 0 = nothing *)
 (* 1 = log totals, averages, min, max bytes marshalled and unmarshalled *)
 (*****************************************************************************)
-external hh_log_level : unit -> int = "hh_log_level"
+external hh_log_level : unit -> int = "hh_log_level" [@@noalloc]
 
 (*****************************************************************************)
 (* The number of used slots in our hashtable *)
@@ -197,13 +258,10 @@ external dep_slots : unit -> int = "hh_dep_slots"
 (* Must be called after the initialization of the hack server is over.
  * (cf serverInit.ml). *)
 (*****************************************************************************)
-external hh_init_done: unit -> unit = "hh_call_after_init"
 
 external hh_check_heap_overflow: unit -> bool  = "hh_check_heap_overflow"
 
 let init_done () =
-  hh_init_done ();
-  if hh_log_level() > 0 then Measure.print_stats ();
   EventLogger.sharedmem_init_done (heap_size ())
 
 type table_stats = {
@@ -228,17 +286,26 @@ let hash_stats () =
     slots = hash_slots ();
   }
 
-let collect (effort : [ `gentle | `aggressive ]) =
+let should_collect (effort : [ `gentle | `aggressive | `always_TEST ]) =
+  let overhead = match effort with
+  | `always_TEST -> 1.0
+  | `aggressive -> 1.2
+  | `gentle -> 2.0
+  in
+  let used = heap_size () in
+  let wasted = wasted_heap_size () in
+  let reachable = used - wasted in
+  used >= truncate ((float reachable) *. overhead)
+
+let collect (effort : [ `gentle | `aggressive | `always_TEST ]) =
   let old_size = heap_size () in
   Stats.update_max_heap_size old_size;
   let start_t = Unix.gettimeofday () in
-  hh_collect (effort = `aggressive);
+  (* The wrapper is used to run the function in a worker instead of master. *)
+  if should_collect effort then hh_collect ();
   let new_size = heap_size () in
   let time_taken = Unix.gettimeofday () -. start_t in
   if old_size <> new_size then begin
-    Hh_logger.log
-      "Sharedmem GC: %d bytes before; %d bytes after; in %f seconds"
-      old_size new_size time_taken;
     EventLogger.sharedmem_gc_ran effort old_size new_size time_taken
   end
 
@@ -309,7 +376,7 @@ module type Key = sig
   (* Md5 primitives *)
   val md5     : t -> md5
   val md5_old : old -> md5
-
+  val string_of_md5 : md5 -> string
 end
 
 module KeyFunctor (UserKeyType : sig
@@ -341,6 +408,7 @@ module KeyFunctor (UserKeyType : sig
   let md5 = Digest.string
   let md5_old = Digest.string
 
+  let string_of_md5 x = x
 end
 
 (*****************************************************************************)
@@ -356,6 +424,7 @@ module Raw (Key: Key) (Value:Value.Type): sig
   val move   : Key.md5 -> Key.md5 -> unit
 
   module LocalChanges : sig
+    val has_local_changes : unit -> bool
     val push_stack : unit -> unit
     val pop_stack : unit -> unit
     val revert : Key.md5 -> unit
@@ -364,31 +433,52 @@ module Raw (Key: Key) (Value:Value.Type): sig
     val commit_all : unit -> unit
   end
 end = struct
-
   (* Returns the number of bytes allocated in the heap, or a negative number
    * if no new memory was allocated *)
-  external hh_add    : Key.md5 -> Value.t -> int = "hh_add"
+  external hh_add    : Key.md5 -> Value.t -> int * int = "hh_add"
   external hh_mem         : Key.md5 -> bool            = "hh_mem"
+  external hh_mem_status  : Key.md5 -> int             = "hh_mem_status"
   external hh_get_size    : Key.md5 -> int             = "hh_get_size"
   external hh_get_and_deserialize: Key.md5 -> Value.t = "hh_get_and_deserialize"
   external hh_remove      : Key.md5 -> unit            = "hh_remove"
   external hh_move        : Key.md5 -> Key.md5 -> unit = "hh_move"
 
-  let log_serialize n =
-    let sharedheap = float n in
+  let hh_mem_status x = WorkerCancel.with_worker_exit (fun () -> hh_mem_status x)
+
+  let _ = hh_mem_status
+
+  let hh_mem x = WorkerCancel.with_worker_exit (fun () -> hh_mem x)
+  let hh_add x y = WorkerCancel.with_worker_exit (fun () -> hh_add x y)
+  let hh_get_and_deserialize x =
+    WorkerCancel.with_worker_exit (fun () -> hh_get_and_deserialize x)
+
+  let log_serialize compressed original =
+    let compressed = float compressed in
+    let original = float original in
+    let saved = original -. compressed in
+    let ratio = compressed /. original in
     Measure.sample (Value.description
-                    ^ " (bytes serialized into shared heap)") sharedheap;
-    Measure.sample ("ALL bytes serialized into shared heap") sharedheap
+      ^ " (bytes serialized into shared heap)") compressed;
+    Measure.sample ("ALL bytes serialized into shared heap") compressed;
+    Measure.sample (Value.description
+      ^ " (bytes saved in shared heap due to compression)") saved;
+    Measure.sample ("ALL bytes saved in shared heap due to compression") saved;
+    Measure.sample (Value.description
+      ^ " (shared heap compression ratio)") ratio;
+    Measure.sample ("ALL bytes shared heap compression ratio") ratio
 
   let log_deserialize l r =
     let sharedheap = float l in
-    let localheap = float (value_size r) in
-    begin
-      Measure.sample (Value.description
-                      ^ " (bytes deserialized from shared heap)") sharedheap;
-      Measure.sample ("ALL bytes deserialized from shared heap") sharedheap;
-      Measure.sample (Value.description
-                      ^ " (bytes allocated for deserialized value)") localheap;
+
+    Measure.sample (Value.description ^ " (bytes deserialized from shared heap)") sharedheap;
+    Measure.sample ("ALL bytes deserialized from shared heap") sharedheap;
+
+    if hh_log_level() > 1
+    then begin
+      (* value_size is a bit expensive to call this often, so only run with log levels >= 2 *)
+      let localheap = float (value_size r) in
+
+      Measure.sample (Value.description ^ " (bytes allocated for deserialized value)") localheap;
       Measure.sample ("ALL bytes allocated for deserialized value") localheap
     end
 
@@ -431,6 +521,8 @@ end = struct
 
     let stack: t option ref = ref None
 
+    let has_local_changes () = Core.Option.is_some (!stack)
+
     let rec mem stack_opt key =
       match stack_opt with
       | None -> hh_mem key
@@ -470,8 +562,8 @@ end = struct
      *    No local changes and key has an associated value in previous stack
      *  *Error*:
      *    This means an exception will occur
-     **)
-    (**
+     *
+     *
      * Transitions table:
      *   Remove  -> *Error*
      *   Replace -> Remove
@@ -504,9 +596,9 @@ end = struct
     let add stack_opt key value =
       match stack_opt with
       | None ->
-          let size = hh_add key value in
-          if hh_log_level() > 0 && size > 0
-          then log_serialize size
+          let compressed_size, original_size = hh_add key value in
+          if hh_log_level() > 0 && compressed_size > 0
+          then log_serialize compressed_size original_size
       | Some stack ->
           try match Hashtbl.find stack.current key with
             | Remove
@@ -521,7 +613,7 @@ end = struct
     let move stack_opt from_key to_key =
       match stack_opt with
       | None -> hh_move from_key to_key
-      | Some stack ->
+      | Some _stack ->
           assert (mem stack_opt from_key);
           assert (not @@ mem stack_opt to_key);
           let value = get stack_opt from_key in
@@ -701,11 +793,14 @@ module type NoCache = sig
   val find_unsafe      : key -> t
   val get_batch        : KeySet.t -> t option KeyMap.t
   val remove_batch     : KeySet.t -> unit
+  val string_of_key    : key -> string
   val mem              : key -> bool
+  val mem_old          : key -> bool
   val oldify_batch     : KeySet.t -> unit
   val revive_batch     : KeySet.t -> unit
 
   module LocalChanges : sig
+    val has_local_changes : unit -> bool
     val push_stack : unit -> unit
     val pop_stack : unit -> unit
     val revert_batch : KeySet.t -> unit
@@ -718,6 +813,7 @@ end
 module type WithCache = sig
   include NoCache
   val write_through : key -> t -> unit
+  val get_no_cache: key -> t option
 end
 
 (*****************************************************************************)
@@ -744,6 +840,9 @@ module NoCache (UserKeyType : UserKeyType) (Value : Value.Type) = struct
 
   type key = UserKeyType.t
   type t = Value.t
+
+  let string_of_key key =
+    key |> Key.make Value.prefix |> Key.md5 |> Key.string_of_md5;;
 
   let add x y = New.add (Key.make Value.prefix x) y
   let find_unsafe x = New.find_unsafe (Key.make Value.prefix x)
@@ -799,6 +898,8 @@ module NoCache (UserKeyType : UserKeyType) (Value : Value.Type) = struct
 
   let mem x = New.mem (Key.make Value.prefix x)
 
+  let mem_old x = Old.mem (Key.make_old Value.prefix x)
+
   let remove_old_batch xs =
     KeySet.iter begin fun str_key ->
       let key = Key.make_old Value.prefix str_key in
@@ -848,6 +949,9 @@ module type CacheType = sig
   val get: key -> value option
   val remove: key -> unit
   val clear: unit -> unit
+
+  val string_of_key : key -> string
+  val get_size : unit -> int
 end
 
 (*****************************************************************************)
@@ -859,10 +963,15 @@ module FreqCache (Key : sig type t end) (Config:ConfigType) :
 
   type value = Config.value
 
+  let string_of_key  _key =
+    failwith "FreqCache does not support 'string_of_key'"
+
   (* The cache itself *)
-  let (cache: (Key.t, int ref * Config.value) Hashtbl.t)
+  let (cache: (Key.t, int ref * value) Hashtbl.t)
     = Hashtbl.create (2 * Config.capacity)
   let size = ref 0
+  let get_size () =
+    !size
 
   let clear() =
     Hashtbl.clear cache;
@@ -881,12 +990,12 @@ module FreqCache (Key : sig type t end) (Config:ConfigType) :
         l := (key, !freq, v) :: !l
       end cache;
       Hashtbl.clear cache;
-      l := List.sort (fun (_, x, _) (_, y, _) -> y - x) !l;
+      l := List.sort ~cmp:(fun (_, x, _) (_, y, _) -> y - x) !l;
       let i = ref 0 in
       while !i < Config.capacity do
         match !l with
         | [] -> i := Config.capacity
-        | (k, freq, v) :: rl ->
+        | (k, _freq, v) :: rl ->
             Hashtbl.replace cache k (ref 0, v);
             l := rl;
             incr i;
@@ -929,11 +1038,16 @@ end
 module OrderedCache (Key : sig type t end) (Config:ConfigType):
   CacheType with type key := Key.t and type value := Config.value = struct
 
+  let string_of_key _key =
+    failwith "OrderedCache does not support 'string_of_key'"
+
   let (cache: (Key.t, Config.value) Hashtbl.t) =
     Hashtbl.create Config.capacity
 
   let queue = Queue.create()
   let size = ref 0
+  let get_size () =
+    !size
 
   let clear() =
     Hashtbl.clear cache;
@@ -978,7 +1092,7 @@ end
 
 let invalidate_callback_list = ref []
 let invalidate_caches () =
-  List.iter !invalidate_callback_list begin fun callback -> callback() end
+  List.iter !invalidate_callback_list ~f:begin fun callback -> callback() end
 
 module LocalCache (UserKeyType : UserKeyType) (Value : Value.Type) = struct
 
@@ -994,6 +1108,9 @@ module LocalCache (UserKeyType : UserKeyType) (Value : Value.Type) = struct
   module L1 = OrderedCache (UserKeyType) (ConfValue)
   (* Frequent values cache *)
   module L2 = FreqCache (UserKeyType) (ConfValue)
+
+  let string_of_key _key =
+    failwith "LocalCache does not support 'string_of_key'"
 
   let add x y =
     L1.add x y;
@@ -1026,6 +1143,7 @@ module LocalCache (UserKeyType : UserKeyType) (Value : Value.Type) = struct
       L2.clear()
     end :: !invalidate_callback_list
 
+  let get_size () = L1.get_size () + L2.get_size ()
 end
 
 (*****************************************************************************)
@@ -1046,30 +1164,43 @@ module WithCache (UserKeyType : UserKeyType) (Value:Value.Type) = struct
 
   module Cache = LocalCache (UserKeyType) (Value)
 
+  let string_of_key key =
+    Direct.string_of_key key
+
   let add x y =
     Direct.add x y;
     Cache.add x y
+
+  let get_no_cache = Direct.get
 
   let write_through x y =
     (* Note that we do not need to do any cache invalidation here because
      * Direct.add is a no-op if the key already exists. *)
     Direct.add x y
 
+  let log_hit_rate ~hit =
+    Measure.sample (Value.description ^ " (cache hit rate)") (if hit then 1. else 0.);
+    Measure.sample ("(ALL cache hit rate)") (if hit then 1. else 0.)
+
   let get x =
     match Cache.get x with
     | None ->
-        (match Direct.get x with
-         | None -> None
-         | Some v as result ->
-             Cache.add x v;
-             result
-        )
-    | Some v as result ->
+        let result = (match Direct.get x with
+            | None -> None
+            | Some v as result ->
+                Cache.add x v;
+                result
+          ) in
+        if hh_log_level () > 0 then log_hit_rate ~hit:false;
+        result
+    | Some _ as result ->
+        if hh_log_level () > 0 then log_hit_rate ~hit:true;
         result
 
   (* We don't cache old objects, they are not accessed often enough. *)
   let get_old = Direct.get_old
   let get_old_batch = Direct.get_old_batch
+  let mem_old = Direct.mem_old
 
   let find_unsafe x =
     match get x with
@@ -1130,5 +1261,8 @@ module WithCache (UserKeyType : UserKeyType) (Value:Value.Type) = struct
     let commit_all () =
       Direct.LocalChanges.commit_all ();
       Cache.clear ()
+
+    let has_local_changes () =
+      Direct.LocalChanges.has_local_changes ()
   end
 end

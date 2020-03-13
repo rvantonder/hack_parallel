@@ -3,12 +3,11 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
+ * LICENSE file in the "hack" directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  *
 *)
 
-open Utilities
 open Hack_core
 
 type 'a nextlist = 'a list Hack_bucket.next
@@ -87,7 +86,6 @@ let call workers ~job ~merge ~neutral ~next =
   | None -> single_threaded_call job merge neutral next
   | Some workers -> multi_threaded_call workers job merge neutral next
 
-let next ?max_size workers =
+let next workers =
   Hack_bucket.make
     ~num_workers: (match workers with Some w -> List.length w | None -> 1)
-    ?max_size

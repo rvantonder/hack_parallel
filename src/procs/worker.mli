@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
+ * LICENSE file in the "hack" directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  *
 *)
@@ -18,12 +18,18 @@
 *)
 (*****************************************************************************)
 
-exception Worker_exited_abnormally of int
-(* Worker killed by Out Of Memory. *)
+exception Worker_exited_abnormally of int * Unix.process_status
+
+(** Worker killed by Out Of Memory. *)
 exception Worker_oomed
+
 (** Raise this exception when sending work to a worker that is already busy.
  * We should never be doing that, and this is an assertion error. *)
 exception Worker_busy
+
+(** Raise this exception when sending work to a worker that is already killed.
+ * We should never be doing that, and this is an assertion error. *)
+exception Worker_killed
 
 type send_job_failure =
   | Worker_already_exited of Unix.process_status
@@ -34,8 +40,6 @@ exception Worker_failed_to_send_job of send_job_failure
 (* The type of a worker visible to the outside world *)
 type t
 
-
-type call_wrapper = { wrap: 'x 'b. ('x -> 'b) -> 'x -> 'b }
 
 (*****************************************************************************)
 (* The handle is what we get back when we start a job. It's a "future"
@@ -49,10 +53,8 @@ type 'a entry
 val register_entry_point:
   restore:('a -> unit) -> 'a entry
 
-(* Creates a pool of workers. *)
+(** Creates a pool of workers. *)
 val make:
-  (** See docs in Worker.t for call_wrapper. *)
-  ?call_wrapper: call_wrapper ->
   saved_state : 'a ->
   entry       : 'a entry ->
   nbr_procs   : int ->
@@ -78,3 +80,7 @@ val get_worker: 'a handle -> t
 
 (* Killall the workers *)
 val killall: unit -> unit
+
+
+(* Return the id of the worker to which the current process belong. 0 means the master process *)
+val current_worker_id: unit -> int

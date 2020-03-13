@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
+ * LICENSE file in the "hack" directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  *
 *)
@@ -32,10 +32,10 @@ let post_fork_child f =
 (* You should always use this instead of Unix.fork, so that the callbacks get
  * invoked *)
 let fork () =
-  List.iter !pre_fork_callbacks (fun f -> f());
+  List.iter !pre_fork_callbacks ~f:(fun f -> f());
   match Unix.fork () with
   | 0 ->
-      List.iter !post_fork_child_callbacks (fun f -> f());
+      List.iter !post_fork_child_callbacks ~f:(fun f -> f());
       0
   | i ->
       i

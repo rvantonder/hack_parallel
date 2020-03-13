@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
+ * LICENSE file in the "hack" directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  *
 *)
@@ -100,7 +100,7 @@ let split_lines = Str.split nl_regexp
 
 (** Returns true if substring occurs somewhere inside str. *)
 let string_contains str substring =
-  (** regexp_string matches only this string and nothing else. *)
+  (* regexp_string matches only this string and nothing else. *)
   let re = Str.regexp_string substring in
   try (Str.search_forward re str 0) >= 0 with Not_found -> false
 
@@ -128,20 +128,20 @@ let rec rm_dir_tree path =
     let stats = Unix.lstat path in
     match stats.Unix.st_kind with
     | Unix.S_DIR ->
-      let contents = Sys.readdir path in
-      List.iter (Array.to_list contents) ~f:(fun name ->
-          let name = Filename.concat path name in
-          rm_dir_tree name);
-      Unix.rmdir path
+        let contents = Sys.readdir path in
+        List.iter (Array.to_list contents) ~f:(fun name ->
+            let name = Filename.concat path name in
+            rm_dir_tree name);
+        Unix.rmdir path
     | Unix.S_LNK | Unix.S_REG | Unix.S_CHR | Unix.S_BLK | Unix.S_FIFO
     | Unix.S_SOCK ->
-      Unix.unlink path
+        Unix.unlink path
   end with
-  (** Path has been deleted out from under us - can ignore it. *)
+  (* Path has been deleted out from under us - can ignore it. *)
   | Sys_error(s) when s = Printf.sprintf "%s: No such file or directory" path ->
-    ()
+      ()
   | Unix.Unix_error(Unix.ENOENT, _, _) ->
-    ()
+      ()
 
 let restart () =
   let cmd = Sys.argv.(0) in
@@ -152,18 +152,18 @@ let logname_impl () =
   match getenv_user () with
   | Some user -> user
   | None ->
-    (* If this function is generally useful, it can be lifted to toplevel
-       in this file, but this is the only place we need it for now. *)
-    let exec_try_read cmd =
-      let ic = Unix.open_process_in cmd in
-      let out = try Some (input_line ic) with End_of_file -> None in
-      let status = Unix.close_process_in ic in
-      match out, status with
-      | Some _, Unix.WEXITED 0 -> out
-      | _ -> None in
-    try Utils.unsafe_opt (exec_try_read "logname") with Invalid_argument _ ->
-    try Utils.unsafe_opt (exec_try_read "id -un") with Invalid_argument _ ->
-      "[unknown]"
+      (* If this function is generally useful, it can be lifted to toplevel
+         in this file, but this is the only place we need it for now. *)
+      let exec_try_read cmd =
+        let ic = Unix.open_process_in cmd in
+        let out = try Some (input_line ic) with End_of_file -> None in
+        let status = Unix.close_process_in ic in
+        match out, status with
+        | Some _, Unix.WEXITED 0 -> out
+        | _ -> None in
+      try Utils.unsafe_opt (exec_try_read "logname") with Invalid_argument _ ->
+      try Utils.unsafe_opt (exec_try_read "id -un") with Invalid_argument _ ->
+        "[unknown]"
 
 let logname_ref = ref None
 let logname () =
@@ -174,7 +174,7 @@ let with_umask umask f =
   let old_umask = ref 0 in
   Utils.with_context
     ~enter:(fun () -> old_umask := Unix.umask umask)
-    ~exit:(fun () -> Unix.umask !old_umask |> ignore)
+    ~exit:(fun () -> ignore (Unix.umask !old_umask))
     ~do_:f
 let with_umask umask f =
   if Sys.win32 then f () else with_umask umask f
@@ -216,14 +216,14 @@ let expanduser path =
     begin fun s ->
       match Str.matched_group 1 s with
       | "" ->
-        begin
-          match getenv_home () with
-          | None -> (Unix.getpwuid (Unix.getuid())).Unix.pw_dir
-          | Some home -> home
-        end
+          begin
+            match getenv_home () with
+            | None -> (Unix.getpwuid (Unix.getuid())).Unix.pw_dir
+            | Some home -> home
+          end
       | unixname ->
-        try (Unix.getpwnam unixname).Unix.pw_dir
-        with Not_found -> Str.matched_string s end
+          try (Unix.getpwnam unixname).Unix.pw_dir
+          with Not_found -> Str.matched_string s end
     path
 
 (* Turns out it's surprisingly complex to figure out the path to the current
@@ -231,7 +231,6 @@ let expanduser path =
    argv[0] is a path, then we can use that; sometimes it's just the exe name,
    so we have to search $PATH for it the same way shells do. for example:
    https://www.gnu.org/software/bash/manual/html_node/Command-Search-and-Execution.html
-
    There are other options which might be more reliable when they exist, like
    using the `_` env var set by bash, or /proc/self/exe on Linux, but they are
    not portable. *)
@@ -243,7 +242,7 @@ let executable_path : unit -> string =
       match getenv_path () with
       | None -> failwith "Unable to determine executable path"
       | Some paths ->
-        Str.split (Str.regexp_string path_sep) paths in
+          Str.split (Str.regexp_string path_sep) paths in
     let path = List.fold_left paths ~f:begin fun acc p ->
         match acc with
         | Some _ -> acc
@@ -257,20 +256,20 @@ let executable_path : unit -> string =
   fun () -> match !executable_path_ with
     | Some path -> path
     | None ->
-      let path = Sys.executable_name in
-      let path =
-        if String.contains path dir_sep then
-          match realpath path with
-          | Some path -> path
-          | None -> failwith "Unable to determine executable path"
-        else search_path path
-      in
-      executable_path_ := Some path;
-      path
+        let path = Sys.executable_name in
+        let path =
+          if String.contains path dir_sep then
+            match realpath path with
+            | Some path -> path
+            | None -> failwith "Unable to determine executable path"
+          else search_path path
+        in
+        executable_path_ := Some path;
+        path
 
 let lines_of_in_channel ic =
   let rec loop accum =
-    match try Some(input_line ic) with e -> None with
+    match try Some(input_line ic) with _e -> None with
     | None -> List.rev accum
     | Some(line) -> loop (line::accum)
   in
@@ -320,8 +319,8 @@ let try_touch ~follow_symlinks file =
 let rec mkdir_p = function
   | "" -> failwith "Unexpected empty directory, should never happen"
   | d when not (Sys.file_exists d) ->
-    mkdir_p (Filename.dirname d);
-    Unix.mkdir d 0o770;
+      mkdir_p (Filename.dirname d);
+      Unix.mkdir d 0o770;
   | d when Sys.is_directory d -> ()
   | d -> raise (NotADirectory d)
 

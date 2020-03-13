@@ -3,21 +3,19 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
+ * LICENSE file in the "hack" directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  *
 *)
 
 type init_settings = {
   scuba_table_name : string;
-  (** File descriptors for the logger daemon's stdout and stderr. *)
-  log_out : Unix.file_descr;
-  log_err : Unix.file_descr;
+  log_out : Unix.file_descr; (** File descriptors for the logger daemon's stdout. *)
+  log_err : Unix.file_descr; (** File descriptors for the logger daemon's stderr. *)
 }
 
 type init_mode =
-  (** Sends everything to /dev/null. *)
-  | Event_logger_fake
+  | Event_logger_fake (** Sends everything to /dev/null. *)
   | Event_logger_real of init_settings
 
 let init ?log_pid:_ ?init_id:_ _ _ = ()
