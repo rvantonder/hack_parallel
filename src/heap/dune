@@ -7,7 +7,7 @@
     hh_assert
     hh_shared
     hh_shared_sqlite)
-  (c_flags (:standard -I%{project_root}/hack_parallel/hack_parallel/third-party/lz4))
+  (c_flags (:standard -I%{project_root}/src/third-party/lz4))
   (c_library_flags (-lsqlite3))
   (libraries
     hack_parallel.collections
