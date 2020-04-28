@@ -110,6 +110,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __OpenBSD__
+#include <errno.h>
+#endif
+
 #include <inttypes.h>
 #include <lz4.h>
 #include <sys/time.h>
