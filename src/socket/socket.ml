@@ -8,7 +8,6 @@
  *
 *)
 
-open Utilities
 module Path = Hack_path
 
 (* Initializes the unix domain socket *)

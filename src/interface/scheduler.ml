@@ -26,14 +26,13 @@ let create
   let heap_handle = Memory.get_heap_handle () in
   let workers =
     Hack_parallel_intf.Std.Worker.make
-      ?call_wrapper:None
       ~saved_state:()
       ~entry
       ~nbr_procs:number_of_workers
       ~heap_handle
       ~gc_control:Memory.worker_garbage_control
   in
-  Memory.connect heap_handle ~is_master:true;
+  Memory.connect heap_handle;
   { workers; number_of_workers; bucket_multiplier }
 
 

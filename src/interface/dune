@@ -5,41 +5,22 @@
  (wrapped false)
  (libraries
   core
-  hack_parallel.heap
-  hack_parallel.processes
-  hack_parallel.utilities))
-
-(library
- (name scheduler)
- (public_name hack_parallel.scheduler)
- (modules scheduler)
- (preprocess
-  (pps
-   ppx_deriving.eq
-   ppx_deriving.show
-   ppx_hash
-   ppx_compare
-   ppx_sexp_conv))
- (libraries
-  core
-  sexplib
-  ppxlib
-  hack_parallel.interface
-  hack_parallel.memory))
+  hack_parallel.procs
+  hack_parallel.socket))
 
 (library
  (name memory)
  (public_name hack_parallel.memory)
  (modules memory)
- (preprocess
-  (pps
-   ppx_deriving.eq
-   ppx_deriving.show
-   ppx_hash
-   ppx_compare
-   ppx_sexp_conv))
  (libraries
   core
-  sexplib
-  ppxlib
   hack_parallel.interface))
+
+(library
+ (name scheduler)
+ (public_name hack_parallel.scheduler)
+ (modules scheduler)
+ (libraries
+  core
+  hack_parallel.interface
+  hack_parallel.memory))

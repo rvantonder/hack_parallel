@@ -3,7 +3,7 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
+ * LICENSE file in the "hack" directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  *
 *)
@@ -66,19 +66,19 @@ let imap_inter m1 m2 =
 let smap_inter_list = function
   | [] -> SMap.empty
   | x :: rl ->
-    List.fold_left rl ~f:smap_inter ~init:x
+      List.fold_left rl ~f:smap_inter ~init:x
 
 let imap_inter_list = function
   | [] -> IMap.empty
   | x :: rl ->
-    List.fold_left rl ~f:imap_inter ~init:x
+      List.fold_left rl ~f:imap_inter ~init:x
 
 let rec wfold_left2 f env l1 l2 =
   match l1, l2 with
   | [], _ | _, [] -> env
   | x1 :: rl1, x2 :: rl2 ->
-    let env = f env x1 x2 in
-    wfold_left2 f env rl1 rl2
+      let env = f env x1 x2 in
+      wfold_left2 f env rl1 rl2
 
 let sl l =
   List.fold_right l ~f:(^) ~init:""
@@ -98,7 +98,7 @@ let unsafe_opt x = unsafe_opt_note "unsafe_opt got None" x
 let inter_list = function
   | [] -> SSet.empty
   | x :: rl ->
-    List.fold_left rl ~f:SSet.inter ~init:x
+      List.fold_left rl ~f:SSet.inter ~init:x
 
 let rec list_last f1 f2 =
   function
@@ -122,7 +122,7 @@ let try_with_channel oc f1 f2 =
 
 let iter_n_acc n f acc =
   let acc = ref acc in
-  for i = 1 to n-1 do
+  for _i = 1 to n-1 do
     acc := fst (f !acc)
   done;
   f !acc
@@ -169,9 +169,9 @@ let try_finally ~f ~(finally: unit -> unit) =
 let with_context ~enter ~exit ~do_ =
   enter ();
   let result = try do_ () with e ->
-    let _ = exit () in
+    exit ();
     raise e in
-  let _ = exit () in
+  exit ();
   result
 
 (* We run with exception backtraces turned off for performance reasons. But for

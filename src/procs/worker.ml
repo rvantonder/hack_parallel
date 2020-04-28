@@ -3,14 +3,12 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
+ * LICENSE file in the "hack" directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  *
 *)
 
-open Utilities
 open Hack_core
-open Stubs
 
 (*****************************************************************************
  * Module building workers
@@ -34,9 +32,10 @@ open Stubs
  *
  *****************************************************************************)
 
-exception Worker_exited_abnormally of int
+exception Worker_exited_abnormally of int * Unix.process_status
 exception Worker_oomed
 exception Worker_busy
+exception Worker_killed
 
 type send_job_failure =
   | Worker_already_exited of Unix.process_status
@@ -78,7 +77,7 @@ type t = {
   id: int; (* Simple id for the worker. This is not the worker pid: on
               Windows, we spawn a new worker for each job. *)
 
-  (** The call wrapper will wrap any workload sent to the worker (via "call"
+  (* The call wrapper will wrap any workload sent to the worker (via "call"
    * below) before invoking the workload.
    *
    * That is, when calling the worker with workload `f x`, it will be wrapped
@@ -87,7 +86,7 @@ type t = {
    * This allows universal handling of workload at the time we create the actual
    * workers. For example, this can be useful to handle exceptions uniformly
    * across workers regardless what workload is called on them. *)
-  call_wrapper: call_wrapper option;
+  call_wrapper: call_wrapper;
 
   (* Sanity check: is the worker still available ? *)
   mutable killed: bool;
@@ -156,7 +155,7 @@ let slave_main ic oc =
     if len > 10 * 1024 * 1024 (* 10 MB *) then begin
       Hh_logger.log "WARNING: you are sending quite a lot of data (%d bytes), \
                      which may have an adverse performance impact. If you are sending \
-                     closures, double-check to ensure that they have not captured large
+                     closures, double-check to ensure that they have not captured large \
         values in their environment." len;
       Printf.eprintf "%s" (Printexc.raw_backtrace_to_string
                              (Printexc.get_callstack 100));
@@ -173,30 +172,30 @@ let slave_main ic oc =
     exit 0
   with
   | End_of_file ->
-    exit 1
+      exit 1
   | SharedMem.Out_of_shared_memory ->
-    Exit_status.(exit Out_of_shared_memory)
+      Exit_status.(exit Out_of_shared_memory)
   | SharedMem.Hash_table_full ->
-    Exit_status.(exit Hash_table_full)
+      Exit_status.(exit Hash_table_full)
   | SharedMem.Heap_full ->
-    Exit_status.(exit Heap_full)
+      Exit_status.(exit Heap_full)
   | SharedMem.Sql_assertion_failure err_num ->
-    let exit_code = match err_num with
-      | 11 -> Exit_status.Sql_corrupt
-      | 14 -> Exit_status.Sql_cantopen
-      | 21 -> Exit_status.Sql_misuse
-      | _ -> Exit_status.Sql_assertion_failure
-    in
-    Exit_status.exit exit_code
+      let exit_code = match err_num with
+        | 11 -> Exit_status.Sql_corrupt
+        | 14 -> Exit_status.Sql_cantopen
+        | 21 -> Exit_status.Sql_misuse
+        | _ -> Exit_status.Sql_assertion_failure
+      in
+      Exit_status.exit exit_code
   | e ->
-    let e_str = Printexc.to_string e in
-    Printf.printf "Exception: %s\n" e_str;
-    EventLogger.log_if_initialized (fun () ->
-        EventLogger.worker_exception e_str
-      );
-    print_endline "Potential backtrace:";
-    Printexc.print_backtrace stdout;
-    exit 2
+      let error_backtrace = Printexc.get_backtrace () in
+      let error_str = Printexc.to_string e in
+      Printf.printf "Exception: %s\n" error_str;
+      EventLogger.log_if_initialized (fun () ->
+          EventLogger.worker_exception error_str
+        );
+      Printf.printf "Potential backtrace:\n%s" error_backtrace;
+      exit 2
 
 let win32_worker_main restore state (ic, oc) =
   restore state;
@@ -217,22 +216,22 @@ let unix_worker_main restore state (ic, oc) =
       match Fork.fork() with
       | 0 -> slave_main ic oc
       | pid ->
-        (* Wait for the slave termination... *)
-        match snd (Unix.waitpid [] pid) with
-        | Unix.WEXITED 0 -> ()
-        | Unix.WEXITED 1 ->
-          raise End_of_file
-        | Unix.WEXITED code ->
-          Printf.printf "Worker exited (code: %d)\n" code;
-          flush stdout;
-          Pervasives.exit code
-        | Unix.WSIGNALED x ->
-          let sig_str = PrintSignal.string_of_signal x in
-          Printf.printf "Worker interrupted with signal: %s\n" sig_str;
-          exit 2
-        | Unix.WSTOPPED x ->
-          Printf.printf "Worker stopped with signal: %d\n" x;
-          exit 3
+          (* Wait for the slave termination... *)
+          match snd (Unix.waitpid [] pid) with
+          | Unix.WEXITED 0 -> ()
+          | Unix.WEXITED 1 ->
+              raise End_of_file
+          | Unix.WEXITED code ->
+              Printf.printf "Worker exited (code: %d)\n" code;
+              flush stdout;
+              Pervasives.exit code
+          | Unix.WSIGNALED x ->
+              let sig_str = PrintSignal.string_of_signal x in
+              Printf.printf "Worker interrupted with signal: %s\n" sig_str;
+              exit 2
+          | Unix.WSTOPPED x ->
+              Printf.printf "Worker stopped with signal: %d\n" x;
+              exit 3
     done;
     assert false
   with End_of_file -> exit 0
@@ -245,7 +244,7 @@ let register_entry_point ~restore =
   incr entry_counter;
   let restore (st, gc_control, heap_handle) =
     restore st;
-    SharedMem.connect heap_handle ~is_master:false;
+    SharedMem.connect heap_handle;
     Gc.set gc_control in
   let name = Printf.sprintf "slave_%d" !entry_counter in
   Daemon.register_entry_point
@@ -261,19 +260,24 @@ let register_entry_point ~restore =
 
 let workers = ref []
 
-(* Build one worker. *)
-let make_one ?call_wrapper spawn id =
-  if id >= max_workers then failwith "Too many workers";
+let current_worker_id = ref 0
 
+(* Build one worker. *)
+let make_one spawn id =
+  if id >= max_workers then failwith "Too many workers";
   let prespawned = if not use_prespawned then None else Some (spawn ()) in
-  let worker = { call_wrapper; id; busy = false; killed = false; prespawned; spawn } in
+  let wrap f input =
+    current_worker_id := id;
+    f input
+  in
+  let worker = { call_wrapper = { wrap }; id; busy = false; killed = false; prespawned; spawn } in
   workers := worker :: !workers;
   worker
 
 (** Make a few workers. When workload is given to a worker (via "call" below),
- * the workload is wrapped in the calL_wrapper. *)
-let make ?call_wrapper ~saved_state ~entry ~nbr_procs ~gc_control ~heap_handle =
-  let spawn log_fd =
+ * the workload is wrapped in the call_wrapper. *)
+let make ~saved_state ~entry ~nbr_procs ~gc_control ~heap_handle =
+  let spawn _log_fd =
     Unix.clear_close_on_exec heap_handle.SharedMem.h_fd;
     let handle =
       Daemon.spawn
@@ -285,9 +289,11 @@ let make ?call_wrapper ~saved_state ~entry ~nbr_procs ~gc_control ~heap_handle =
   in
   let made_workers = ref [] in
   for n = 1 to nbr_procs do
-    made_workers := make_one ?call_wrapper spawn n :: !made_workers
+    made_workers := make_one spawn n :: !made_workers
   done;
   !made_workers
+
+let current_worker_id () = !current_worker_id
 
 (**************************************************************************
  * Send a job to a worker
@@ -295,7 +301,7 @@ let make ?call_wrapper ~saved_state ~entry ~nbr_procs ~gc_control ~heap_handle =
  **************************************************************************)
 
 let call w (type a) (type b) (f : a -> b) (x : a) : b handle =
-  if w.killed then Printf.ksprintf failwith "killed worker (%d)" w.id;
+  if w.killed then raise Worker_killed;
   if w.busy then raise Worker_busy;
   (* Spawn the slave, if not prespawned. *)
   let { Daemon.pid = slave_pid; channels = (inc, outc) } as h =
@@ -306,28 +312,22 @@ let call w (type a) (type b) (f : a -> b) (x : a) : b handle =
   let result () : b =
     match Unix.waitpid [Unix.WNOHANG] slave_pid with
     | 0, _ | _, Unix.WEXITED 0 ->
-      let res : b * Measure.record_data = Daemon.input_value inc in
-      if w.prespawned = None then Daemon.close h;
-      Measure.merge (Measure.deserialize (snd res));
-      fst res
+        let res : b * Measure.record_data = Daemon.input_value inc in
+        if w.prespawned = None then Daemon.close h;
+        Measure.merge ~from:(Measure.deserialize (snd res)) ();
+        fst res
     | _, Unix.WEXITED i when i = Exit_status.(exit_code Out_of_shared_memory) ->
-      raise SharedMem.Out_of_shared_memory
-    | _, Unix.WEXITED i ->
-      Printf.eprintf "Subprocess(%d): fail %d" slave_pid i;
-      raise (Worker_exited_abnormally i)
-    | _, Unix.WSTOPPED i ->
-      Printf.ksprintf failwith "Subprocess(%d): stopped %d" slave_pid i
-    | _, Unix.WSIGNALED i ->
-      Printf.ksprintf failwith "Subprocess(%d): signaled %d" slave_pid i in
+        raise SharedMem.Out_of_shared_memory
+    | _, exit_status ->
+        raise (Worker_exited_abnormally (slave_pid, exit_status))
+  in
   (* Mark the worker as busy. *)
   let infd = Daemon.descr_of_in_channel inc in
   let slave = { result; slave_pid; infd; worker = w; } in
   w.busy <- true;
-  let request = match w.call_wrapper with
-    | Some { wrap } ->
-      (Request (fun { send } -> send (wrap f x)))
-    | None -> (Request (fun { send } -> send (f x)))
-
+  let request =
+    let { wrap } = w.call_wrapper in
+    Request (fun { send } -> send (wrap f x))
   in
   (* Send the job to the slave. *)
   let () = try Daemon.to_channel outc
@@ -336,9 +336,9 @@ let call w (type a) (type b) (f : a -> b) (x : a) : b handle =
   | e -> begin
       match Unix.waitpid [Unix.WNOHANG] slave_pid with
       | 0, _ ->
-        raise (Worker_failed_to_send_job (Other_send_job_failure e))
+          raise (Worker_failed_to_send_job (Other_send_job_failure e))
       | _, status ->
-        raise (Worker_failed_to_send_job (Worker_already_exited status))
+          raise (Worker_failed_to_send_job (Worker_already_exited status))
     end
   in
   (* And returned the 'handle'. *)
@@ -360,18 +360,18 @@ let get_result d =
   | Cached x -> x
   | Failed exn -> raise exn
   | Processing s ->
-    try
-      let res = s.result () in
-      s.worker.busy <- false;
-      d := Cached res;
-      res
-    with
-    | Failure (msg) when is_oom_failure msg ->
-      raise Worker_oomed
-    | exn ->
-      s.worker.busy <- false;
-      d := Failed exn;
-      raise exn
+      try
+        let res = s.result () in
+        s.worker.busy <- false;
+        d := Cached res;
+        res
+      with
+      | Failure (msg) when is_oom_failure msg ->
+          raise Worker_oomed
+      | exn ->
+          s.worker.busy <- false;
+          d := Failed exn;
+          raise exn
 
 
 (*****************************************************************************
@@ -402,11 +402,11 @@ let select ds =
     ~f:(fun d { readys ; waiters } ->
         match !d with
         | Cached _ | Failed _ ->
-          { readys = d :: readys ; waiters }
+            { readys = d :: readys ; waiters }
         | Processing s when List.mem ready_fds s.infd ->
-          { readys = d :: readys ; waiters }
+            { readys = d :: readys ; waiters }
         | Processing _ ->
-          { readys ; waiters = d :: waiters})
+            { readys ; waiters = d :: waiters})
     ~init:{ readys = [] ; waiters = [] }
     ds
 
