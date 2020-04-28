@@ -15,7 +15,9 @@
 #include <assert.h>
 #ifndef _WIN32
 #ifndef __APPLE__
+#ifndef __OpenBSD__
 #include <sys/sysinfo.h>
+#endif
 #endif
 #endif
 
