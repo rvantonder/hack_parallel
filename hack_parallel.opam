@@ -1,6 +1,6 @@
 opam-version: "2.0"
-maintainer: "rvantonder@gmail.com"
-authors: "Facebook hackers"
+maintainer: "Rijnard van Tonder <rvantonder@gmail.com>"
+authors: "Facebook. Modifications by Rijnard van Tonder"
 homepage: "https://github.com/rvantonder/hack-parallel"
 bug-reports: "https://github.com/rvantonder/hack-parallel/issues"
 dev-repo: "git+https://github.com/rvantonder/hack-parallel.git"
@@ -27,5 +27,5 @@ projects.
 """
 # url {
 #   src: "https://github.com/rvantonder/hack-parallel/archive/1.0.0.tar.gz"
-#   checksum: "md5=44d0726013fca75410c700daa402bd1d"
+#   checksum: "md5=d5ef2ddb9c566fe1d632041be5fa5c40"
 # }
