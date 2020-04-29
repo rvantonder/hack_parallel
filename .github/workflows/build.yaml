@@ -7,11 +7,11 @@ jobs:
       fail-fast: false
       matrix:
         os:
-#         - macos-latest
+          - macos-latest
           - ubuntu-latest
         ocaml-version:
           - '4.08.1'
-#         - '4.09.0'
+          - '4.09.0'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
