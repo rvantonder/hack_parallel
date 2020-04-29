@@ -66,10 +66,10 @@ let get_heap_handle () =
 
 
 let heap_use_ratio () =
-  Core.Float.of_int (SharedMemory.heap_size ()) /.
-  Core.Float.of_int initial_heap_size
+  Core_kernel.Float.of_int (SharedMemory.heap_size ()) /.
+  Core_kernel.Float.of_int initial_heap_size
 
 
 let slot_use_ratio () =
   let { SharedMemory.used_slots; slots; _ } = SharedMemory.hash_stats () in
-  Core.Float.of_int used_slots /. Core.Float.of_int slots
+  Core_kernel.Float.of_int used_slots /. Core_kernel.Float.of_int slots

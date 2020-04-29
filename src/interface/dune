@@ -4,7 +4,7 @@
  (modules hack_parallel_intf)
  (wrapped false)
  (libraries
-  core
+  core_kernel
   hack_parallel.procs
   hack_parallel.socket))
 
@@ -13,7 +13,7 @@
  (public_name hack_parallel.memory)
  (modules memory)
  (libraries
-  core
+  core_kernel
   hack_parallel.interface))
 
 (library
@@ -21,6 +21,6 @@
  (public_name hack_parallel.scheduler)
  (modules scheduler)
  (libraries
-  core
+  core_kernel
   hack_parallel.interface
   hack_parallel.memory))

@@ -48,7 +48,7 @@ let map_reduce
     | Some exact_size when exact_size > 0 ->
       (List.length work / exact_size) + 1
     | _ ->
-      let bucket_multiplier = Core.Int.min bucket_multiplier (1 + (List.length work / 400)) in
+      let bucket_multiplier = Core_kernel.Int.min bucket_multiplier (1 + (List.length work / 400)) in
       number_of_workers * bucket_multiplier
   in
   MultiWorker.call

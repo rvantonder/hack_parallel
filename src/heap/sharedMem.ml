@@ -521,7 +521,7 @@ end = struct
 
     let stack: t option ref = ref None
 
-    let has_local_changes () = Core.Option.is_some (!stack)
+    let has_local_changes () = Core_kernel.Option.is_some (!stack)
 
     let rec mem stack_opt key =
       match stack_opt with

@@ -14,7 +14,7 @@
     realpath
     sysinfo)
   (libraries
-    core
+    core_kernel
     str
     hack_parallel.collections
     hack_parallel.disk
