@@ -10,6 +10,7 @@ build: [
 ]
 depends: [
   "core_kernel"
+  "conf-sqlite3"
   "ocaml" {>= "4.03.0"}
 ]
 synopsis: "Parallel and shared memory library"
