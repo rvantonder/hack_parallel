@@ -8,7 +8,7 @@
  *
 *)
 
-open Core
+open Core_kernel
 
 let timestamp_string () =
   let open Unix in

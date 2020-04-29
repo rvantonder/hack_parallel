@@ -9,10 +9,8 @@ build: [
   ["dune" "build" "-p" name "-j" jobs "@install"]
 ]
 depends: [
-  "core"
+  "core_kernel"
   "ocaml" {>= "4.03.0"}
-  "ppx_deriving"
-  "str"
 ]
 synopsis: "Parallel and shared memory library"
 description: """
