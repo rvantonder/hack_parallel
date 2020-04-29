@@ -22,5 +22,6 @@ jobs:
 #     - name: Setup tmate session
 #       uses: mxschmitt/action-tmate@v1
       - run: opam pin add hack_parallel.dev -n .
+      - run: opam depext -yt hack_parallel
       - run: opam install -t . --deps-only
       - run: opam exec -- dune build
