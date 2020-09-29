@@ -326,8 +326,8 @@ module Std : sig
     (* Returns the worker which produces this handle *)
     val get_worker: 'a handle -> t
 
-    (* Killall the workers *)
-    val killall: unit -> unit
+    (* Kill a worker *)
+    val kill: t -> unit
 
     val current_worker_id: unit -> int
   end
@@ -444,6 +444,10 @@ module Std : sig
     (* Kill a 'spawned' child and close the associated typed channels. *)
     val kill : ('a, 'b) handle -> unit
 
+    (* Kill a 'spawned' child and close the associated typed channels, then wait for its termination. *)
+    (* Unlike `kill`, this API makes sure the terminated children do not become zombie processes. *)
+    val kill_and_wait : ('a, 'b) handle -> unit
+    
     (* Main function, that execute a alternate entry point.
        It should be called only once. Just before the main entry point.
        This function does not return when a custom entry point is selected. *)
