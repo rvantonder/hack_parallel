@@ -231,6 +231,7 @@ let expanduser path =
    argv[0] is a path, then we can use that; sometimes it's just the exe name,
    so we have to search $PATH for it the same way shells do. for example:
    https://www.gnu.org/software/bash/manual/html_node/Command-Search-and-Execution.html
+
    There are other options which might be more reliable when they exist, like
    using the `_` env var set by bash, or /proc/self/exe on Linux, but they are
    not portable. *)

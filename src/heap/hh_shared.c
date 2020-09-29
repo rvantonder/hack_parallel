@@ -1862,6 +1862,7 @@ hh_mem_inner
 -1 -- key is not present in the hash table at all
 -2 -- key is present in the hash table but associated with zero-valued data.
       This means that the data has been explicitly deleted.
+
 Note that the only valid return values are {1,-1,-2}. In order to use the result
 of this function in an "if" statement an explicit test must be performed.
 */
