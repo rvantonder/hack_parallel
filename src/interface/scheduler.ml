@@ -89,5 +89,5 @@ let mock () =
   { workers = []; number_of_workers = 1; bucket_multiplier = 1 }
 
 
-let destroy _ =
-  Worker.killall ()
+let destroy u =
+  List.iter Worker.kill u.workers

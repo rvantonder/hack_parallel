@@ -21,12 +21,16 @@
   | 'true'
   | 'false'
   | 'null'
+
 <object>   ::= '{' <members>* '}'
 <members>  ::= <pair> { ',' <pair> }* [',']
 <pair>     ::= <string> ':' <value>
+
 <array>    ::= '{' <elements>* '}'
 <elements> ::= <value> { ',' <value> }* [',']
+
 <number>   ::=
+
 Caveats:
  (+) No handling of Unicode yet
  (+) Numbers are just stored as strings
