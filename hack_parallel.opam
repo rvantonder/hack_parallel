@@ -10,11 +10,11 @@ build: [
 ]
 depends: [
   "conf-sqlite3"
-  "core_kernel" {< "v0.14"}
+  "core"
   "ocaml" {>= "4.03.0"}
   "ppx_deriving"
   "ppxlib"
-  "sexplib" {< "v0.14"}
+  "sexplib"
 ]
 depexts: [
   "pkg-config"
